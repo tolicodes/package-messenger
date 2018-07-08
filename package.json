@@ -20,12 +20,9 @@
   },
   "dependencies": {
     "expo": "^27.0.1",
-    "http": "^0.0.0",
-    "react": "16.3.1",
+    "react": "^16.4.1",
+    "react-cloud-vision-api": "^0.3.0",
     "react-native": "~0.55.2",
-    "react-native-camera": "^1.1.4",
-    "react-native-document-scanner": "^1.4.2",
-    "react-native-tesseract-ocr": "^1.0.10",
     "styled-components": "^3.3.3"
   }
 }

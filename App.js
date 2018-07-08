@@ -1,19 +1,51 @@
 import React from 'react';
 import styled from 'styled-components';
-import { StyleSheet, Text, View , Image} from 'react-native';
-import { BarCodeScanner, Camera, Permissions } from 'expo';
-import RNTesseractOcr from 'react-native-tesseract-ocr';
-import DocumentScanner from 'react-native-document-scanner';
+import { StyleSheet, Text, View } from 'react-native';
+import { Camera, Permissions, ImagePicker } from 'expo';
+import autoBind from 'react-autobind';
+import Button from 'react-native-button'
 
-export default class CameraExample extends React.Component {
+import vision from "react-cloud-vision-api";
+
+import { GOOGLE_API_KEY } from './.env.json';
+
+vision.init({ auth: GOOGLE_API_KEY });
+
+export default class CameraApp extends React.Component {
   state = {
     hasCameraPermission: null,
+  }
+
+  constructor() {
+    super();
+    autoBind(this); 
   }
 
   async componentWillMount() {
     const { status } = await Permissions.askAsync(Permissions.CAMERA);
     this.setState({hasCameraPermission: status === 'granted'});
+  }
+
+  async recognizeText() {
+    try {
+      const { base64 } = await this.camera.takePictureAsync({ base64: true });
+
+      const { responses } = await vision.annotate(new vision.Request({
+        image: new vision.Image({
+          base64,
+        }),
+        features: [
+          new vision.Feature('TEXT_DETECTION'), 
+        ]
+      })) 
+
+      if(!responses) return;
+
+      console.log(responses[0].textAnnotations.map(annotation => annotation.description));
+    } catch(e) {
+      console.log(e);
     }
+  }
 
   render() {
     const { hasCameraPermission, packageScanned, packageCode } = this.state;
@@ -30,44 +62,31 @@ export default class CameraExample extends React.Component {
     } else if (hasCameraPermission === false) {
       return <Text>No access to camera</Text>;
     } else {
-      return (
-        <View>
-          <DocumentScanner
-            useBase64
-            onPictureTaken={data => this.setState({
-              image: data.croppedImage,
-              initialImage: data.initialImage,
-              rectangleCoordinates: data.rectangleCoordinates,
-            })}
-            overlayColor="rgba(255,130,0, 0.7)"
-            enableTorch={false}
-            brightness={0.3}
-            saturation={1}
-            contrast={1.1}
-            quality={0.5}
-            onRectangleDetect={({ stableCounter, lastDetectionType }) => this.setState({ stableCounter, lastDetectionType })}
-            detectionCountBeforeCapture={5}
-            detectionRefreshRateInMS={50}
-          />
-          <Image source={{ uri: `data:image/jpeg;base64,${this.state.image}`}} resizeMode="contain" />
-        </View>
-      );
-
-      return (
+      return ( 
         <View style={{ flex: 1 }} >
           <Camera
             ref={ref => { this.camera = ref }}
-            focusDepth={0}
+            autoFocus={Camera.Constants.AutoFocus.off}
+            focusDepth={.7}
             onBarCodeRead={this._handleBarCodeRead}
             flashMode={Camera.Constants.FlashMode.torch}
             style={StyleSheet.absoluteFill}
           />
+          <Button
+            containerStyle={{ position: 'absolute', bottom: 0, padding:10, height:45, overflow:'hidden', borderRadius:4, backgroundColor: 'orange'}}
+            disabledContainerStyle={{backgroundColor: 'grey'}}
+            style={{fontSize: 20, color: 'white'}}
+            onPress={this.recognizeText}
+            color="#841584"
+          >
+            Take Photo of Label
+          </Button>
         </View>
       );
     }
   }
 
-  _handleBarCodeRead = ({ data }) => {
+  _handleBarCodeRead = ({ data }) => { 
     this.setState({
       packageScanned: true,
       packageCode: data
